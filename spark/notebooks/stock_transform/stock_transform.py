@@ -35,13 +35,8 @@ if __name__ == '__main__':
 
         # Read a JSON file from an MinIO bucket using the access key, secret key, 
         # and endpoint configured above
-
-        # print('"os.getenv('SPARK_APPLICATION_ARGS')" ',os.getenv('SPARK_APPLICATION_ARGS'))
-        print('[READING DATA]')
-        s3_path = "stock-market/AAPL/prices.json"
         df = spark.read.option("header", "false") \
-            .json(f"s3a://{s3_path}/prices.json")
-        print('[DONE READING DATA]')
+            .json(f"s3a://{os.getenv('SPARK_APPLICATION_ARGS')}/prices.json")
 
         # Explode the necessary arrays
         df_exploded = df.select("timestamp", explode("indicators.quote").alias("quote")) \
@@ -52,18 +47,12 @@ if __name__ == '__main__':
         df_zipped = df_zipped.select(explode("zipped")).select("col.timestamp", "col.close", "col.high", "col.low", "col.open", "col.volume")
         df_zipped = df_zipped.withColumn('date', from_unixtime('timestamp').cast(DateType()))
 
-
-        print('[WRITING DATA]')
-
         # Store in Minio
         df_zipped.write \
             .mode("overwrite") \
             .option("header", "true") \
             .option("delimiter", ",") \
-            .csv(f"s3a://{s3_path}/formatted_prices")#csv(f"s3a://{os.getenv('SPARK_APPLICATION_ARGS')}/formatted_prices")
-        
-        print('[DONE WRITING DATA]')
-
+            .csv(f"s3a://{os.getenv('SPARK_APPLICATION_ARGS')}/formatted_prices")
 
     app()
     os.system('kill %d' % os.getpid())
